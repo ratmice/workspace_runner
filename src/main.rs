@@ -3,33 +3,26 @@ use std::env;
 use std::path::Path;
 use std::process::Command;
 
+#[derive(serde::Deserialize)]
+struct CargoMetadata {
+    workspace_root: String,
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cwd = env::current_dir().unwrap();
     let dir = "--dir".to_string();
     let mut args = vec!["run".to_string()];
     let env_vars = ["OUT_DIR", "CARGO_MANIFEST_DIR"];
-    let mut cargo_tomls = Vec::new();
+    let output = Command::new("cargo").args(["metadata"]).output()?;
+    let s = String::from_utf8(output.stdout)?;
+    let metadata: CargoMetadata = serde_json::from_str(&s)?;
 
-    // Starting from the manifest dir down to the root of the filesystem
-    //
-    // If cargo.toml exists append it to the list
-    // FIXME: this should be improved, it would be wise to
-    // read the Cargo.toml and look for a `[workspace]` key
-    // then use the first `Cargo.toml` with one of those.
-    if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
-        let mut cur_dir = Some(Path::new(&manifest_dir));
-        while let Some(path) = cur_dir {
-            let cargo_toml_path = path.with_file_name("Cargo.toml");
-            if cargo_toml_path.exists() {
-                cargo_tomls.push(
-                    cargo_toml_path
-                        .relative_to(cwd.clone())
-                        .unwrap()
-                        .to_path("."),
-                );
-            }
-            cur_dir = path.parent();
-        }
+    let to_workspace = cwd
+        .relative_to(Path::new(&metadata.workspace_root))?
+        .to_path(".");
+
+    for path in to_workspace.ancestors() {
+        args.extend([dir.clone(), path.display().to_string()]);
     }
 
     // Add the paths in `ENV_VARS` --env converting them relative to the current directory
@@ -44,16 +37,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             args.extend(["--env".to_string(), format!("{var}={}", &rel.clone())]);
             args.extend([dir.clone(), rel.to_string()]);
         };
-    }
-
-    // For the last `Cargo.toml` in the list
-    // add `--dir` for each directory from the current directorty `--dir .`,
-    // `--dir ..` `--dir ../..`, and so on up to the directory of the `Cargo.toml`.
-    for ancestor in cargo_tomls.last().unwrap().parent().unwrap().ancestors() {
-        let path_arg = ancestor.display().to_string();
-        if !path_arg.is_empty() {
-            args.extend([dir.clone(), path_arg]);
-        }
     }
 
     // Now add `--dir .`, even if this has been added previously,
