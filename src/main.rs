@@ -17,12 +17,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let s = String::from_utf8(output.stdout)?;
     let metadata: CargoMetadata = serde_json::from_str(&s)?;
 
-    let to_workspace = cwd
-        .relative_to(Path::new(&metadata.workspace_root))?
-        .to_path(".");
+    let to_workspace = Path::new(&metadata.workspace_root)
+        .relative_to(&cwd)?
+        .to_path("");
 
+    // wasmtime is very finicky in what it accepts,
+    // e.g. --dir "./.." fails while ".." works.
+    //
+    // --dir "../.." fails
+    // while --dir "../.." --dir ".." works.
+    //
+    //So we
+    // --dir ".", --dir ".." --dir "../.."
+    // all the way up to the workspace_root.
+    //
+    // this is also why we don't just add "--dir workspace_root"
     for path in to_workspace.ancestors() {
-        args.extend([dir.clone(), path.display().to_string()]);
+        let path = path.display().to_string();
+        if !path.is_empty() {
+            args.extend([dir.clone(), path])
+        }
     }
 
     // Add the paths in `ENV_VARS` --env converting them relative to the current directory
