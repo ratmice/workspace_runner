@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //
     // this is also why we don't just add "--dir workspace_root"
     for path in to_workspace.ancestors() {
-        let path_str: OsString = path.into();
+        let path_str = OsString::from(path);
         if !path.as_os_str().is_empty() {
             args.extend([dir.clone(), path_str])
         }
@@ -66,7 +66,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // the last one will set the current working directory
     args.extend([dir.clone(), ".".into()]);
     // cargo test will run the "runner" with args, skip argv[0]
-    args.extend(std::env::args().skip(1).map(|x| x.into()));
+    args.extend(std::env::args_os().skip(1));
     let mut child = Command::new("wasmtime")
         .args(args)
         .spawn()
