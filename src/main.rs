@@ -2,6 +2,7 @@ use relative_path::PathExt;
 use std::env;
 use std::path::Path;
 use std::process::Command;
+use std::ffi::OsString;
 
 #[derive(serde::Deserialize)]
 struct CargoMetadata {
@@ -10,8 +11,8 @@ struct CargoMetadata {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cwd = env::current_dir().unwrap();
-    let dir = "--dir".to_string();
-    let mut args = vec!["run".to_string()];
+    let dir: OsString = "--dir".into();
+    let mut args: Vec<OsString> = vec!["run".into()];
     let env_vars = ["OUT_DIR", "CARGO_MANIFEST_DIR"];
     let output = Command::new("cargo").args(["metadata"]).output()?;
     let s = String::from_utf8(output.stdout)?;
@@ -33,9 +34,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //
     // this is also why we don't just add "--dir workspace_root"
     for path in to_workspace.ancestors() {
-        let path = path.display().to_string();
-        if !path.is_empty() {
-            args.extend([dir.clone(), path])
+        let path_str: OsString = path.into();
+        if !path.as_os_str().is_empty() {
+            args.extend([dir.clone(), path_str])
         }
     }
 
@@ -43,21 +44,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Add the --dir preopens too.
     for var in env_vars {
         if let Ok(env_dir) = std::env::var(var) {
-            let rel = if Path::new(&env_dir) == cwd.clone() {
-                ".".to_string()
+            let rel: OsString = if Path::new(&env_dir) == cwd.clone() {
+                ".".into()
             } else {
-                Path::new(&env_dir).relative_to(cwd.clone())?.to_string()
+                Path::new(&env_dir).relative_to(cwd.clone())?.to_path("").into()
             };
-            args.extend(["--env".to_string(), format!("{var}={}", &rel.clone())]);
-            args.extend([dir.clone(), rel.to_string()]);
+
+            let mut rel_str = OsString::new();
+            rel_str.push(var);
+            rel_str.push("=");
+            rel_str.push(OsString::from(rel.clone()));
+            args.extend(["--env".into(), rel_str]);
+            args.extend([dir.clone(), rel.into()]);
         };
     }
 
     // Now add `--dir .`, even if this has been added previously,
     // the last one will set the current working directory
-    args.extend([dir.clone(), ".".to_string()]);
+    args.extend([dir.clone(), ".".into()]);
     // cargo test will run the "runner" with args, skip argv[0]
-    args.extend(std::env::args().skip(1));
+    args.extend(std::env::args().skip(1).map(|x| x.into()));
     let mut child = Command::new("wasmtime")
         .args(args)
         .spawn()
