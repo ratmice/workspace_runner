@@ -1,8 +1,8 @@
 use relative_path::PathExt;
 use std::env;
+use std::ffi::OsString;
 use std::path::Path;
 use std::process::Command;
-use std::ffi::OsString;
 
 #[derive(serde::Deserialize)]
 struct CargoMetadata {
@@ -47,7 +47,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let rel: OsString = if Path::new(&env_dir) == cwd.clone() {
                 ".".into()
             } else {
-                Path::new(&env_dir).relative_to(cwd.clone())?.to_path("").into()
+                Path::new(&env_dir)
+                    .relative_to(cwd.clone())?
+                    .to_path("")
+                    .into()
             };
 
             let mut rel_str = OsString::new();
