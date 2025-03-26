@@ -1,13 +1,12 @@
 use relative_path::PathExt;
 use std::env;
 use std::ffi::OsString;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(serde::Deserialize)]
 struct CargoMetadata {
-    // Alas this won't parse from json as an OsString.
-    workspace_root: String,
+    workspace_root: PathBuf,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -18,9 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new("cargo").args(["metadata"]).output()?;
     let metadata: CargoMetadata = serde_json::from_slice(&output.stdout)?;
 
-    let to_workspace = Path::new(&metadata.workspace_root)
-        .relative_to(&cwd)?
-        .to_path("");
+    let to_workspace = metadata.workspace_root.relative_to(&cwd)?.to_path("");
 
     // wasmtime is very finicky in what it accepts,
     // e.g. --dir "./.." fails while ".." works.
