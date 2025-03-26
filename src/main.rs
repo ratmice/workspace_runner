@@ -6,6 +6,7 @@ use std::process::Command;
 
 #[derive(serde::Deserialize)]
 struct CargoMetadata {
+    // Alas this won't parse from json as an OsString.
     workspace_root: String,
 }
 
@@ -15,8 +16,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args: Vec<OsString> = vec!["run".into()];
     let env_vars = ["OUT_DIR", "CARGO_MANIFEST_DIR"];
     let output = Command::new("cargo").args(["metadata"]).output()?;
-    let s = String::from_utf8(output.stdout)?;
-    let metadata: CargoMetadata = serde_json::from_str(&s)?;
+    let metadata: CargoMetadata = serde_json::from_slice(&output.stdout)?;
 
     let to_workspace = Path::new(&metadata.workspace_root)
         .relative_to(&cwd)?
