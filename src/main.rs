@@ -53,9 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut rel_str = OsString::new();
             rel_str.push(var);
             rel_str.push("=");
-            rel_str.push(OsString::from(rel.clone()));
+            rel_str.push(rel.clone());
             args.extend(["--env".into(), rel_str]);
-            args.extend([dir.clone(), rel.into()]);
+            args.extend([dir.clone(), rel]);
         };
     }
 
