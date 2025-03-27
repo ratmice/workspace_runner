@@ -1,4 +1,6 @@
 [package]
+description = "A cargo runner that ensures your workspace is available when run in wasmtime"
+license = "Apache-2.0/MIT"
 name = "workspace_runner"
 version = "0.1.0"
 edition = "2024"
