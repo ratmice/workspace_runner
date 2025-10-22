@@ -118,6 +118,10 @@ fn run_wasmtime_wasip2(os_args: Vec<OsString>) -> Result<(), Box<dyn std::error:
         .args(args)
         .spawn()
         .expect("failed to execute process");
-    child.wait().expect("command wasn't running");
-    Ok(())
+    let status = child.wait()?;
+    if status.success() {
+      Ok(())
+    } else {
+      Err("process returned failure".into())
+    }
 }
